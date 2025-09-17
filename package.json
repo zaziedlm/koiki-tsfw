@@ -1,0 +1,40 @@
+{
+  "name": "koiki-tsfw",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbo",
+    "build": "next build --turbo",
+    "start": "next start",
+    "worker": "node --require ts-node/register src/jobs/worker.ts"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.10.0",
+    "@prisma/client": "^6.16.2",
+    "@trpc/client": "^11.5.1",
+    "@trpc/next": "^11.5.1",
+    "@trpc/react-query": "^11.5.1",
+    "@trpc/server": "^11.5.1",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.58.5",
+    "ioredis": "^5.7.0",
+    "jsonwebtoken": "^9.0.2",
+    "next": "15.5.3",
+    "next-auth": "^4.24.11",
+    "nodemailer": "^7.0.6",
+    "pino": "^9.9.5",
+    "prisma": "^6.16.2",
+    "rate-limiter-flexible": "^7.3.1",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "superjson": "^2.2.2",
+    "zod": "^4.1.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.1",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  }
+}

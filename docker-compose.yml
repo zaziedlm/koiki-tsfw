@@ -1,0 +1,88 @@
+services:
+  app:
+    container_name: koiki-ts-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - sh
+      - -c
+      - pnpm prisma migrate deploy && pnpm start
+    environment:
+      DATABASE_URL: postgresql://koiki:koiki@postgres:5432/koiki
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: please-change-me
+      LOG_LEVEL: info
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    container_name: koiki-ts-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - sh
+      - -c
+      - pnpm prisma migrate deploy && pnpm worker
+    environment:
+      DATABASE_URL: postgresql://koiki:koiki@postgres:5432/koiki
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: please-change-me
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USER: ''
+      SMTP_PASS: ''
+      SMTP_FROM: noreply@example.com
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    profiles:
+      - full
+
+  postgres:
+    container_name: koiki-ts-postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: koiki
+      POSTGRES_PASSWORD: koiki
+      POSTGRES_DB: koiki
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    container_name: koiki-ts-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    profiles:
+      - full
+
+  mailhog:
+    container_name: koiki-ts-mailhog
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "8025:8025"
+    restart: unless-stopped
+    profiles:
+      - full
+
+volumes:
+  postgres-data:

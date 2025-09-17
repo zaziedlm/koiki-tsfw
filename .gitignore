@@ -1,0 +1,46 @@
+node_modules# Node.js
+node_modules/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SSL certificate (ignore all *.pem files anywhere)
+**/*.pem
+
+# Next.js build output
+.next/
+out/
+
+# TypeScript
+dist/
+*.tsbuildinfo
+
+# Env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# VSCode settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Prisma
+prisma/migrations/
+
+# Coverage
+coverage/
+
+# Others
+*.swp
+*.swo
+.idea/
