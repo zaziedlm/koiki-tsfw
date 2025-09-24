@@ -118,3 +118,17 @@ docker compose --profile full up --build
 2. `pnpm prisma migrate dev --name init` を実行し、Prisma スキーマに基づくテーブルを作成します。
 3. `pnpm dev` でアプリケーションを起動後、別ターミナルで `pnpm worker` を実行して BullMQ ワーカーを常駐させます。
 4. 新規登録 (`/api/trpc/auth.register`) → TODO 作成/更新 (`/api/trpc/todo.*`) → メール送信ジョブが処理されることを順に確認します。送信ログは Pino を通じてコンソールに出力されます。
+
+## 🔒 Fork・利用に関するご案内
+
+このリポジトリはパブリック公開されていますが、以下の条件を遵守いただける方以外の Fork・再利用はご遠慮ください。
+
+- Fork の前に、必ずリポジトリ管理者（@zaziedlm）にご連絡ください
+
+無断でのForkや再利用が確認された場合、GitHubへの削除申請を行うことがあります。ご理解とご協力をお願いします。
+
+## ライセンス
+
+MIT License
+
+https://opensource.org/license/mit
