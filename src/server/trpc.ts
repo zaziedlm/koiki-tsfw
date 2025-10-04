@@ -6,11 +6,25 @@ import { authOptions } from "../app/api/auth/[...nextauth]/route";
 
 export type Context = {
   session: Session | null;
+  req: Request | null;
+  ip: string | null;
 };
 
-export const createContext = async (_opts?: { req: Request }) => {
+function resolveClientIp(req?: Request | null): string | null {
+  if (!req) return null;
+  const direct = req.headers.get('x-real-ip');
+  if (direct) return direct.split(',')[0].trim();
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const cf = req.headers.get('cf-connecting-ip');
+  if (cf) return cf.split(',')[0].trim();
+  return null;
+}
+
+export const createContext = async (opts?: { req: Request }) => {
   const session = await getServerSession(authOptions);
-  return { session };
+  const req = opts?.req ?? null;
+  return { session, req, ip: resolveClientIp(req) };
 };
 
 export const t = initTRPC.context<Context>().create({

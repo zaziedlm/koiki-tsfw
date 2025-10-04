@@ -15,9 +15,11 @@ model User {
   email         String   @unique
   hashedPassword String?
   name          String?
+  emailVerified DateTime?
   roles         UserRole[]
   sessions      Session[]
   todos         Todo[]
+  verificationTokens EmailVerificationToken[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -72,4 +74,13 @@ model Todo {
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expires   DateTime
+  createdAt DateTime @default(now())
 }

@@ -1,11 +1,14 @@
 {
   "name": "koiki-tsfw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
     "build": "next build --turbo",
+    "dev": "next dev --turbo",
     "start": "next start",
+    "test:e2e": "node scripts/run-e2e-tests.mjs",
+    "test:integration": "node scripts/run-integration-tests.mjs",
+    "test:unit": "cross-env NODE_ENV=test DOTENV_CONFIG_PATH=.env.test vitest --run --config vitest.config.ts --coverage",
     "worker": "node --require ts-node/register src/jobs/worker.ts"
   },
   "dependencies": {
@@ -31,10 +34,16 @@
     "zod": "^4.1.9"
   },
   "devDependencies": {
+    "@testing-library/react": "^15.0.0",
     "@types/node": "^24.5.1",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "@vitest/coverage-v8": "^2.1.1",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.4.5",
+    "msw": "^2.4.12",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^2.1.1"
   }
 }

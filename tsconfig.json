@@ -33,7 +33,9 @@
     "next-env.d.ts",
     "src/**/*",
     ".next/types/**/*.ts",
-    "next-auth.d.ts"
+    "next-auth.d.ts",
+    "tests/**/*",
+    "prisma/**/*.ts"
   ],
   "exclude": [
     "node_modules"

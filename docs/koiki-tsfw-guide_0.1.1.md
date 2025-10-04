@@ -1,4 +1,6 @@
-# KOIKI-(TS)FW v0.1.0 ガイド
+# KOIKI-(TS)FW v0.1.1 ガイド
+
+> **注**: このドキュメントは v0.1.1 時点の内容です。v0.1.0 からの主な変更点：テスト環境整備、パスワードポリシー・メール検証・登録レート制限機能の実装、実装状況の詳細な点検とドキュメント化。
 
 ## はじめに
 
@@ -41,7 +43,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 │  └─ middleware.ts     # レートリミット用 Next.js ミドルウェア
 ├─ docker-compose.yml   # Postgres / Redis / MailHog / Worker コンテナ
 ├─ Dockerfile           # マルチステージビルド (Turbopack 対応)
-└─ docs/koiki-tsfw-guide.md  # 本ガイド
+└─ docs/koiki-tsfw-guide_0.1.1.md  # 本ガイド
 ```
 
 ---
@@ -75,19 +77,24 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 * NextAuth.js は JWT セッション戦略を使用し、`next-auth.d.ts` によって `session.user.id` を型拡張しています。
 * 認証処理では Prisma Adapter と `src/lib/auth.ts` のヘルパー (`hashPassword` / `verifyPassword` / `hasRole`) を利用します。
-* `hasRole` は Prisma のリレーションを使い RBAC 判定を行います。将来的に Python 版の Permission モデルと同等の拡張が可能です。
+* **パスワードポリシー** (`src/lib/passwordPolicy.ts`) により、最小8文字・大小英数字・記号を含む強度チェックを実装しています。
+* **メール検証機能** (`src/lib/emailVerification.ts`) により、ユーザー登録時にトークンベースのメール検証フローを提供します。
+* **登録レート制限** (`src/lib/registerRateLimiter.ts`) により、登録エンドポイントへの過剰なリクエストを防止します（デフォルト5回/10分）。
+* `hasRole` は Prisma のリレーションを使い RBAC 判定を行います。**⚠️ 注意**: Permission モデルは定義済みですが、権限チェックロジックは未実装です。
 
 ---
 
 ## API 層 (tRPC)
 
-* `src/server/trpc.ts` で tRPC の初期化と `createContext` を定義し、NextAuth セッションを API 各処理へ注入します。
+* `src/server/trpc.ts` で tRPC の初期化と `createContext` を定義し、NextAuth セッション・Request・IPアドレスを API 各処理へ注入します。
+* IP解決は `x-real-ip` → `x-forwarded-for` → `cf-connecting-ip` の優先順位で行われます。
 * `src/server/api/routers/app.ts` がアプリ単位のルーターを構成し、`user` / `todo` / `auth` のサブモジュールを集約しています。
 * 個別ルーターの責務:
   * `userRouter` (`me`, `list`) — セッションからユーザー情報を読み出すクエリを提供。
   * `todoRouter` (`list`, `create`, `toggle`) — ユーザーに紐づく Todo の CRUD 相当を実装し、Python 版のサービス + リポジトリ層の役割を統合しています。
-  * `authRouter` (`register`, `resetRequest`) — ユーザー登録と簡易パスワードリセットメール送信を担当。BullMQ 経由でメールジョブを enqueue します。
+  * `authRouter` (`register`, `resetRequest`) — ユーザー登録とパスワードリセットメール送信を担当。BullMQ 経由でメールジョブを enqueue します。**⚠️ 注意**: `resetRequest`のトークン生成は仮実装（固定値`'token'`）であり、実際には機能しません。
 * `protectedProcedure` により NextAuth セッション必須 API を宣言的に表現します。
+* SuperJSON により Date・Map・Set などの複雑な型を透過的にシリアライズできます。
 
 ---
 
@@ -125,6 +132,13 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 ## ロギングとモニタリング
 
 * `src/lib/logger.ts` で Pino ロガーを初期化し、LOG_LEVEL に応じた JSON ログを標準出力へ記録します。
+* 現状のログ出力箇所:
+  * BullMQワーカー: ジョブ処理開始・完了・失敗
+  * Redis未設定時の警告
+* **⚠️ 重要な制限事項**:
+  * **監査ログ機能は未実装**: 認証イベント（ログイン成功/失敗、ユーザー登録、パスワード変更等）の記録がありません。
+  * **APIアクセスログ未実装**: tRPCエンドポイントへのアクセスが記録されません。
+  * エンタープライズ運用には監査ログの実装が必須です。
 * Python 版で利用していた structlog + Prometheus に相当する機能は未移植です。今後は Pino Transport や OpenTelemetry Exporter の追加を前提に拡張できます。
 
 ---
@@ -193,26 +207,60 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 ## テストと品質管理
 
-* 現状は自動テストのセットアップが未実装です。Python 版で提供していた pytest / セキュリティテスト (slowapi) に相当する仕組みが課題となります。
-* 優先度の高い TODO:
+### 現状の実装
+
+* **テストインフラ**: vitest設定（`vitest.config.ts`）、テスト用環境変数読込（`vitest.setup.ts`）、統合・E2Eテストスクリプト（`scripts/run-*-tests.mjs`）は整備済み。
+* **テストスクリプト機能**:
+  * Docker Compose自動起動
+  * テストDB自動作成・マイグレーション適用
+  * テスト完了後の自動クリーンアップ
+* **実行コマンド**:
+  * `pnpm test:unit` — ユニットテスト（カバレッジ付き）
+  * `pnpm test:integration` — 統合テスト（postgres + redis起動）
+  * `pnpm test:e2e` — E2Eテスト（フル構成起動）
+
+### ⚠️ 重要な制限事項
+
+* **テストコードが存在しません**: `tests/`ディレクトリにテストファイルが1つもなく、テストスクリプトは実行できません。
+* 「テスト容易性」を謳っているものの、実際のテスト実装例がないため実証されていません。
+
+### 優先度の高い TODO
+
+  * 🔴 **最優先**: 基本的なテストケース作成（認証、CRUD各1-2件）
   * Prisma Schema を用いたシードデータ・E2E テスト (Playwright または Vitest + tRPC テストクライアント)。
   * BullMQ ジョブの単体テスト (Queue Mock) と Mailer の検証。
   * Lint / Format / Type Check CI (GitHub Actions) の導入。
   * レートリミットや RBAC の回帰テスト。
+  * テストカバレッジ目標: 80%以上
 
 ---
 
 ## Python 版からの差分とロードマップ
 
-| 項目 | FastAPI 版 | Next.js 版の現状 | 今後の課題 |
-| --- | --- | --- | --- |
-| 認証 | JWT + OAuth2 | NextAuth.js Credentials | OAuth プロバイダ対応、Permission API 拡充 |
-| RBAC | Role/Permission サービス層 | Prisma と `hasRole` のみ | 権限管理 UI、tRPC ミドルウェアの拡張 |
-| レート制御 | slowapi | rate-limiter-flexible | Redis 無し環境での代替、メトリクス収集 |
-| 背景ジョブ | Celery | BullMQ | 遅延ジョブ種別の追加、監視工具 (Arena 等) |
-| ロギング | structlog + Prometheus | Pino | Access Log 統合、OpenTelemetry |
-| テスト | pytest / security scripts | 未整備 | playwright / vitest / lint CI |
-| ドキュメント | docs/*.md | 本ガイドのみ | API リファレンス、チュートリアル整備 |
+| 項目 | FastAPI 版 | Next.js 版の現状 | 実装状況 | 今後の課題 |
+| --- | --- | --- | --- | --- |
+| 認証基盤 | JWT + OAuth2 | NextAuth.js Credentials | ✅ 完了 | OAuth プロバイダ対応 |
+| パスワードポリシー | - | 強度チェック実装済み | ✅ 完了 | - |
+| メール検証 | - | トークンベース実装済み | ✅ 完了 | - |
+| パスワードリセット | 完全実装 | 仮実装（固定トークン） | ⚠️ 未完成 | トークン生成・検証ロジック実装 |
+| RBAC | Role/Permission サービス層 | モデル定義のみ | ⚠️ 部分実装 | 権限チェックロジック、権限管理 UI、tRPC ミドルウェア |
+| レート制御 | slowapi | rate-limiter-flexible | ✅ 完了 | Redis 無し環境での代替、メトリクス収集、レート制限ヘッダー |
+| 背景ジョブ | Celery | BullMQ | ✅ 完了 | 遅延ジョブ種別の追加、監視工具 (BullBoard 等) |
+| ロギング | structlog + Prometheus | Pino（基本実装のみ） | ⚠️ 部分実装 | 🔴 監査ログ実装、APIアクセスログ、OpenTelemetry |
+| テスト | pytest / security scripts | インフラのみ整備 | ❌ 未実装 | 🔴 テストケース作成、playwright / vitest / lint CI |
+| ドキュメント | docs/*.md | 本ガイド + CLAUDE.md | ✅ 基本完了 | API リファレンス、チュートリアル整備 |
+
+### 実装優先度
+
+#### 🔴 クリティカル（即時対応推奨）
+1. **監査ログ機能の実装** — 認証・認可イベントの記録
+2. **テストコードの作成** — 最低限のユニット・統合テスト
+3. **パスワードリセット機能の完成** — トークン生成・検証ロジック
+
+#### 🟡 重要（早期対応推奨）
+4. **RBAC権限チェック実装** — `hasPermission()`関数とミドルウェア
+5. **認証イベントログ** — ログイン成功/失敗の記録
+6. **APIアクセスログ** — tRPCミドルウェアでのアクセスログ
 
 Python 版ドキュメント (`docs/design_kkfw_0.6.0.md`) に記載された DDD / Modular Monolith の考え方は、本リポジトリでも tRPC ルーターの分割や Prisma モデルで引き続き活かせます。必要に応じて `src/server/api/routers` を機能軸で細分化し、UI 層にも同じ語彙 (Todo、Auth など) を導入すると保守性が向上します。
 
@@ -229,4 +277,48 @@ Python 版ドキュメント (`docs/design_kkfw_0.6.0.md`) に記載された DD
 
 ---
 
-今後は FastAPI 版と同様に、セキュリティテストや CI/CD、監視ツールを段階的に移植することで、Next.js 版フレームワークの完成度を高めることができます。
+## 既知の制限事項と今後の改善計画
+
+### 現在の制限事項
+
+本フレームワークは基本的なアーキテクチャは完成していますが、以下の制限事項があります：
+
+1. **🔴 監査ログ未実装**
+   - 認証イベント（ログイン成功/失敗、登録、パスワード変更）が記録されない
+   - APIアクセスログが記録されない
+   - エンタープライズ運用には致命的な欠陥
+
+2. **🔴 テストコードが存在しない**
+   - テストインフラは整備済みだが、実際のテストが1つもない
+   - 品質保証ができない
+
+3. **⚠️ RBAC機能が部分実装**
+   - Permissionモデルは定義済みだが、権限チェックロジックがない
+   - `hasRole`のみ実装、`hasPermission`は未実装
+
+4. **⚠️ パスワードリセット機能が仮実装**
+   - トークン生成が固定値`'token'`のまま
+   - 実際には機能しない
+
+### 改善フェーズ
+
+#### フェーズ1: 致命的問題の解決（1-2週間）
+- 監査ログ機能の実装
+- パスワードリセット機能の完成
+- 基本的なテストコード作成（認証、CRUD各1-2件）
+
+#### フェーズ2: エンタープライズ機能の強化（2-4週間）
+- RBAC権限チェック実装
+- 認証・APIアクセスログの実装
+- CI/CD構成（GitHub Actions）
+- ヘルスチェックエンドポイント実装
+
+#### フェーズ3: 開発者体験の向上（継続的）
+- サンプルアプリケーション実装
+- テストカバレッジ向上（目標: 80%以上）
+- メールテンプレート機能実装
+- ドキュメント拡充（APIリファレンス、チュートリアル）
+
+---
+
+今後は FastAPI 版と同様に、上記の改善計画に沿ってセキュリティテストや CI/CD、監視ツールを段階的に移植・実装することで、Next.js 版フレームワークの完成度を高めることができます。詳細な実装状況と課題については、`INSPECTION_REPORT.md`を参照してください。

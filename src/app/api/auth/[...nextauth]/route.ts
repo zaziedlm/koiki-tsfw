@@ -23,6 +23,9 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
         if (!user || !user.hashedPassword) return null;
+        if (!user.emailVerified) {
+          throw new Error('Email is not verified yet.');
+        }
         const valid = await verifyPassword(
           credentials.password,
           user.hashedPassword
