@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "next build --turbo",
+    "build": "next build",
     "start": "next start",
     "worker": "node --require ts-node/register src/jobs/worker.ts"
   },
@@ -34,7 +34,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
-    "@types/node": "^25.0.1",
+    "@types/node": "^20.17.6",
     "@types/pg": "^8.16.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
