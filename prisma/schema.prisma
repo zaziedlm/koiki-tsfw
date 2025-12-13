@@ -1,9 +1,9 @@
 // Prisma schema for KOIKI-(TS)FW
 // Using PostgreSQL as default provider, adjust if needed
+// With Prisma 7, datasource URL is configured in prisma/prisma.config.ts
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {

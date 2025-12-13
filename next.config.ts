@@ -1,24 +1,17 @@
 import type { NextConfig } from 'next';
 
-// Next.js 15 configuration for KOIKI-(TS)FW
+// Next.js 16 configuration for KOIKI-(TS)FW
 //
 // We enable typedRoutes to get compile-time type safety for all route paths.
-// Server Actions remain enabled via the experimental flag. See the Next.js 15
-// release notes for details on these settings. When using turbopack in
-// production builds, use `next build --turbo` (see package.json scripts).
+// Server Actions are now stable in Next.js 16 and no longer require experimental flags.
+// When using turbopack in production builds, use `next build --turbo` (see package.json scripts).
 
 const nextConfig: NextConfig = {
   /**
    * Enable typed routes for compile-time safety when using <Link href="..." />
-   * and route helpers. This requires Next.js 15.5 or later.
+   * and route helpers. This is stable in Next.js 16.
    */
   typedRoutes: true,
-  experimental: {
-    /**
-     * Opt into React Server Actions. This remains stable in Next.js 15.
-     */
-    serverActions: {},
-  },
 };
 
 export default nextConfig;
