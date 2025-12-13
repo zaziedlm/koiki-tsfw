@@ -2,7 +2,7 @@
 
 このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、tRPC、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
-> **Next.js 15 対応**：本テンプレートは Next.js 15.5 を前提としており、非同期化された `cookies`/`headers` API、型付きルーティング、Turbopack による高速ビルド等を活用できます。`next.config.ts` で `typedRoutes` を有効にしており、`pnpm dev`/`pnpm build` は Turbopack を使用します。
+> **Next.js 16 対応**：本テンプレートは Next.js 16.0、React 19.2、Prisma 7.1 を使用した最新の構成となっています。型付きルーティング、Turbopack による高速ビルド、Prisma 7 の新しいアダプター方式などの最新機能を活用できます。`next.config.ts` で `typedRoutes` を有効にしており、`pnpm dev`/`pnpm build` は Turbopack を使用します。
 
 ## 主な特徴
 
@@ -19,6 +19,7 @@
 .
 ├── prisma/
 │   ├── schema.prisma            # Prisma データモデル
+│   ├── prisma.config.ts         # Prisma 7 設定ファイル
 │   └── migrations/              # 自動生成されるマイグレーション
 ├── src/
 │   ├── app/
@@ -29,7 +30,7 @@
 │   │       └── trpc/[trpc]/route.ts         # tRPC エンドポイント
 │   ├── components/              # UI コンポーネント
 │   ├── lib/
-│   │   ├── prisma.ts            # Prisma クライアント
+│   │   ├── prisma.ts            # Prisma クライアント (Prisma 7 アダプター方式)
 │   │   ├── auth.ts              # 認証ユーティリティ (RBAC など)
 │   │   ├── logger.ts            # Pino ロガー設定
 │   │   ├── queue.ts             # BullMQ キュー
@@ -44,10 +45,10 @@
 │   ├── jobs/
 │   │   ├── worker.ts            # BullMQ ワーカー
 │   │   └── emailJob.ts          # メール送信ジョブ
-│   └── middleware.ts            # Next.js ミドルウェア (レート制限)
+│   └── proxy.ts                 # Next.js 16 Proxy (レート制限)
 ├── .env.example                 # 環境変数サンプル
 ├── package.json                 # 依存ライブラリ
-├── next.config.ts               # Next.js 設定 (Next.js 15)
+├── next.config.ts               # Next.js 設定 (Next.js 16)
 └── tsconfig.json                # TypeScript 設定
 ```
 
