@@ -2,7 +2,7 @@
 
 ## はじめに
 
-KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.com/zaziedlm/koiki-pyfw) を Next.js + TypeScript で再設計したフルスタック開発フレームワークです。React Server Components と Next.js 15 系の機能を活かしつつ、Prisma・NextAuth.js・tRPC・BullMQ・Pino などを OSS コンポーネントとして組み合わせ、同様の Developer Experience（開発者体験） と機能要件をフロントエンド中心のエコシステムで達成することを目標にしています。
+KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.com/zaziedlm/koiki-pyfw) を Next.js + TypeScript で再設計したフルスタック開発フレームワークです。React Server Components と Next.js 16 系の機能を活かしつつ、Prisma・NextAuth.js・tRPC・BullMQ・Pino などを OSS コンポーネントとして組み合わせ、同様の Developer Experience（開発者体験） と機能要件をフロントエンド中心のエコシステムで達成することを目標にしています。
 
 本書では、リポジトリ全体の設計思想・主要機能・構成要素を俯瞰し、Python 版ドキュメントにおける考え方との対応関係を整理します。
 
@@ -12,14 +12,14 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 | カテゴリ | 採用技術 | 役割 | リンク |
 | --- | --- | --- | --- |
-| Web フレームワーク | Next.js 15 App Router | サーバーサイドレンダリングと API ルーティング | [Next.js](https://nextjs.org/) |
-| 言語 | TypeScript 5.9 / React 19 | 型安全と最新 RSC 互換 UI | [TypeScript](https://www.typescriptlang.org/) |
-| ORM / DB | Prisma Client + PostgreSQL | スキーマ定義・マイグレーション・DB アクセス | [Prisma](https://www.prisma.io/) |
+| Web フレームワーク | Next.js 16 App Router | サーバーサイドレンダリングと API ルーティング | [Next.js](https://nextjs.org/) |
+| 言語 | TypeScript 5.9 / React 19.2 | 型安全と最新 RSC 互換 UI | [TypeScript](https://www.typescriptlang.org/) |
+| ORM / DB | Prisma 7 Client + PostgreSQL | スキーマ定義・マイグレーション・DB アクセス | [Prisma](https://www.prisma.io/) |
 | 認証 | NextAuth.js (Credentials Provider) | セッション・RBAC 補助 | [NextAuth.js](https://next-auth.js.org/) |
 | API | tRPC v11 | 型安全な App Router API | [tRPC](https://trpc.io/) |
 | キュー / ジョブ | BullMQ + Redis | 非同期ジョブ処理・メール送信 | [BullMQ](https://docs.bullmq.io/) |
-| ロギング | Pino | JSON ログ出力・構造化ログ | [Pino](https://getpino.io/) |
-| レート制御 | rate-limiter-flexible + Redis | API ミドルウェアでのリクエスト制御 | [rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) |
+| ロギング | Pino 10 | JSON ログ出力・構造化ログ | [Pino](https://getpino.io/) |
+| レート制御 | rate-limiter-flexible 9 + Redis | API プロキシでのリクエスト制御 | [rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) |
 | メール | Nodemailer | SMTP 経由の通知送信 | [Nodemailer](https://nodemailer.com/) |
 
 ---
@@ -29,6 +29,8 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 ```
 .
 ├─ prisma/              # Prisma スキーマとマイグレーション
+│  ├─ schema.prisma    # Prisma データモデル定義
+│  └─ prisma.config.ts # Prisma 7 データソース設定
 ├─ src/
 │  ├─ app/              # Next.js App Router (UI / Route Handler)
 │  │  ├─ api/          # NextAuth と tRPC エンドポイント
@@ -38,7 +40,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 │  ├─ lib/              # 共通ライブラリ (Prisma, Auth, Queue, Logger …)
 │  ├─ server/           # tRPC ルーターとサーバーコンテキスト
 │  ├─ jobs/             # BullMQ ジョブ定義とワーカー
-│  └─ middleware.ts     # レートリミット用 Next.js ミドルウェア
+│  └─ proxy.ts          # レートリミット用 Next.js 16 プロキシ
 ├─ docker-compose.yml   # Postgres / Redis / MailHog / Worker コンテナ
 ├─ Dockerfile           # マルチステージビルド (Turbopack 対応)
 └─ docs/koiki-tsfw-guide.md  # 本ガイド
@@ -52,7 +54,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 * Prisma を「データ層」とし、TypeScript 型と DB モデルを一元化します。Python 版の SQLAlchemy + Pydantic 相当の責務を集約しました。
 * tRPC で API をモジュール化し、`src/server/api/routers` 以下で Python 版の `libkoiki` 配下に相当する機能を構成しています。
 * BullMQ と Nodemailer により非同期ジョブと通知送信を担当し、Redis を共通インフラとして利用します (オプション)。
-* ミドルウェアでは Redis バックエンドのレートリミットを提供し、API エントリポイントを守ります。
+* プロキシ (Next.js 16) では Redis バックエンドのレートリミットを提供し、API エントリポイントを守ります。
 * ロギングは Pino による JSON 出力を基本とし、将来的な Prometheus 連携を想定しています。
 
 ---
@@ -91,17 +93,19 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 ---
 
-## データモデリング (Prisma)
+## データモデリング (Prisma 7)
 
 * `prisma/schema.prisma` は Python 版 `libkoiki/models`/`schemas` の役割を統合し、`User`・`Role`・`Permission`・`Todo` などのエンティティを定義します。
-* Prisma Client は `src/lib/prisma.ts` でシングルトンとして管理し、開発環境でのホットリロードにも対応します。
+* `prisma/prisma.config.ts` は Prisma 7 の新しい設定ファイルで、データソース URL を管理します。
+* Prisma Client は `src/lib/prisma.ts` でシングルトンとして管理し、PostgreSQL アダプター (@prisma/adapter-pg) を使用して接続します。開発環境でのホットリロードにも対応します。
 * マイグレーションは `pnpm prisma migrate dev` で生成・適用できます。Docker 実行時は `pnpm prisma migrate deploy` を自動実行します。
 
 ---
 
-## ミドルウェアとレートリミット
+## プロキシとレートリミット (Next.js 16)
 
-* `src/middleware.ts` は Next.js の Edge/Node ミドルウェアとして `rateLimit` を呼び出し、`/api` 配下のリクエスト頻度を制御します。
+* `src/proxy.ts` は Next.js 16 のプロキシ機能として `rateLimit` を呼び出し、`/api` 配下のリクエスト頻度を制御します。
+* Next.js 16 では従来の middleware.ts からプロキシ方式に変更され、常に Node.js ランタイムで実行されます。
 * `src/lib/rateLimit.ts` では Redis URL が設定された場合のみ `rate-limiter-flexible` を初期化し、IP ベースで 60 秒あたり 10 リクエストに制限します。Redis が無い場合は no-op として動作します。
 
 ---
