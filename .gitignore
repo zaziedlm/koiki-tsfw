@@ -35,7 +35,8 @@ logs/
 *.log
 
 # Prisma
-prisma/migrations/
+# now, git manages migrations
+#prisma/migrations/
 
 # Coverage
 coverage/
