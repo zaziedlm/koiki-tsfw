@@ -14,7 +14,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 | --- | --- | --- | --- |
 | Web フレームワーク | Next.js 16 App Router | サーバーサイドレンダリングと API ルーティング | [Next.js](https://nextjs.org/) |
 | 言語 | TypeScript 5.9 / React 19.2 | 型安全と最新 RSC 互換 UI | [TypeScript](https://www.typescriptlang.org/) |
-| ORM / DB | Prisma 7 Client + PostgreSQL | スキーマ定義・マイグレーション・DB アクセス | [Prisma](https://www.prisma.io/) |
+| ORM / DB | Prisma 6 Client + PostgreSQL (adapter-pg) | スキーマ定義・マイグレーション・DB アクセス | [Prisma](https://www.prisma.io/) |
 | 認証 | NextAuth.js (Credentials Provider) | セッション・RBAC 補助 | [NextAuth.js](https://next-auth.js.org/) |
 | API | tRPC v11 | 型安全な App Router API | [tRPC](https://trpc.io/) |
 | キュー / ジョブ | BullMQ + Redis | 非同期ジョブ処理・メール送信 | [BullMQ](https://docs.bullmq.io/) |
@@ -30,7 +30,6 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 .
 ├─ prisma/              # Prisma スキーマとマイグレーション
 │  ├─ schema.prisma    # Prisma データモデル定義
-│  └─ prisma.config.ts # Prisma 7 データソース設定
 ├─ src/
 │  ├─ app/              # Next.js App Router (UI / Route Handler)
 │  │  ├─ api/          # NextAuth と tRPC エンドポイント
@@ -42,7 +41,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 │  ├─ jobs/             # BullMQ ジョブ定義とワーカー
 │  └─ proxy.ts          # レートリミット用 Next.js 16 プロキシ
 ├─ docker-compose.yml   # Postgres / Redis / MailHog / Worker コンテナ
-├─ Dockerfile           # マルチステージビルド (Turbopack 対応)
+├─ Dockerfile           # マルチステージビルド (Next.js 16 のデフォルトビルドに追従)
 └─ docs/koiki-tsfw-guide.md  # 本ガイド
 ```
 
@@ -93,10 +92,9 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 ---
 
-## データモデリング (Prisma 7)
+## データモデリング (Prisma 6)
 
 * `prisma/schema.prisma` は Python 版 `libkoiki/models`/`schemas` の役割を統合し、`User`・`Role`・`Permission`・`Todo` などのエンティティを定義します。
-* `prisma/prisma.config.ts` は Prisma 7 の新しい設定ファイルで、データソース URL を管理します。
 * Prisma Client は `src/lib/prisma.ts` でシングルトンとして管理し、PostgreSQL アダプター (@prisma/adapter-pg) を使用して接続します。開発環境でのホットリロードにも対応します。
 * マイグレーションは `pnpm prisma migrate dev` で生成・適用できます。Docker 実行時は `pnpm prisma migrate deploy` を自動実行します。
 
@@ -148,8 +146,8 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
   * `NEXTAUTH_URL` / `NEXTAUTH_SECRET` — セッション生成に必須。
   * `REDIS_URL` — レートリミットと BullMQ を有効化する場合に設定。
   * `SMTP_*` — メール送信用トランスポート。
-* `next.config.ts` は typedRoutes と Server Actions を有効化しており、Next.js 15.5 の Turbopack ビルドを前提にしています。
-* `tsconfig.json` では strict mode を強制し、Next.js 用の型定義プラグインを組み込んでいます。
+* `next.config.ts` は typedRoutes を有効化しています（Next.js 16 のデフォルト設定に準拠）。
+* `tsconfig.json` では strict mode を強制し、`moduleResolution: "bundler"`、`target: "es2022"`、`jsx: "preserve"` を採用しています。Next.js 用の型定義プラグインも組み込んでいます。
 
 ---
 
@@ -167,6 +165,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
    ```bash
    pnpm dev
    ```
+   > 開発は Turbopack (`next dev --turbo`) を利用します。本番ビルドは `pnpm build`（`next build`）で、Next.js 16 のデフォルト設定に従います。
 4. バックグラウンドワーカーの起動 (Redis 利用時)
    ```bash
    pnpm worker
@@ -191,7 +190,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
   ```bash
   docker compose --profile full up --build
   ```
-* Dockerfile はマルチステージ構成で、依存解決 → Prisma 生成 → Turbopack ビルド → ランタイムの順にイメージを最適化しています。社内 CA を追加できるよう `/docker/certs` を読み込む仕組みも継承しています。
+* Dockerfile はマルチステージ構成で、依存解決 → Prisma 生成 → `next build`（Next.js 16 のデフォルトビルド。現行バージョンでは Turbopack が利用されます）→ ランタイムの順にイメージを最適化しています。社内 CA を追加できるよう `/docker/certs` を読み込む仕組みも継承しています。
 
 ---
 

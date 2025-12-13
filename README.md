@@ -2,7 +2,7 @@
 
 このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、tRPC、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
-> **Next.js 16 対応**：本テンプレートは Next.js 16.0、React 19.2、Prisma 7.1 を使用した最新の構成となっています。型付きルーティング、Turbopack による高速ビルド、Prisma 7 の新しいアダプター方式などの最新機能を活用できます。`next.config.ts` で `typedRoutes` を有効にしており、`pnpm dev`/`pnpm build` は Turbopack を使用します。
+> **Next.js 16 対応**：本テンプレートは Next.js 16.0.10、React 19.2、Prisma 6.4 (adapter‑pg) を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
 
 ## 主な特徴
 
@@ -19,7 +19,6 @@
 .
 ├── prisma/
 │   ├── schema.prisma            # Prisma データモデル
-│   ├── prisma.config.ts         # Prisma 7 設定ファイル
 │   └── migrations/              # 自動生成されるマイグレーション
 ├── src/
 │   ├── app/
@@ -28,9 +27,8 @@
 │   │   └── api/
 │   │       ├── auth/[...nextauth]/route.ts  # NextAuth.js 認証ルート
 │   │       └── trpc/[trpc]/route.ts         # tRPC エンドポイント
-│   ├── components/              # UI コンポーネント
 │   ├── lib/
-│   │   ├── prisma.ts            # Prisma クライアント (Prisma 7 アダプター方式)
+│   │   ├── prisma.ts            # Prisma クライアント (PostgreSQL adapter-pg)
 │   │   ├── auth.ts              # 認証ユーティリティ (RBAC など)
 │   │   ├── logger.ts            # Pino ロガー設定
 │   │   ├── queue.ts             # BullMQ キュー
@@ -71,7 +69,7 @@
    ```bash
    pnpm dev
    ```
-   > `pnpm dev` は Turbopack を使って開発サーバを立ち上げます。`--turbo` オプションを外したい場合は `package.json` のスクリプトを編集してください。
+   > `pnpm dev` は Turbopack を使って開発サーバを立ち上げます。本番ビルドは `pnpm build`（`next build`）で、Next.js 16 のデフォルト設定に従います。
 
 4. **ジョブワーカー起動**
 
