@@ -42,6 +42,8 @@ RUN pnpm install --frozen-lockfile --prod=false
 
 FROM deps AS builder
 
+ARG DATABASE_URL=postgresql://user:pass@localhost:5432/db
+ENV DATABASE_URL=${DATABASE_URL}
 ENV NODE_ENV=production
 
 COPY . .
