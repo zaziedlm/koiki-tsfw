@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -50,6 +51,11 @@ export default function RegisterPage() {
 
     if (password.length < 8) {
       setError('パスワードは8文字以上で入力してください');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('パスワードが一致しません');
       return;
     }
 
@@ -116,6 +122,24 @@ export default function RegisterPage() {
             />
             <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
               8文字以上で入力してください
+            </small>
+          </label>
+
+          <label>
+            <span style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>
+              パスワード（確認） *
+            </span>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="パスワードを再入力"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            <small className="text-muted" style={{ display: 'block', marginTop: '0.25rem' }}>
+              確認のため、もう一度同じパスワードを入力してください
             </small>
           </label>
 
