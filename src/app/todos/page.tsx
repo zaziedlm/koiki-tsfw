@@ -9,6 +9,7 @@ export default function TodosPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
   const [newTodoTitle, setNewTodoTitle] = useState('');
+  const utils = trpc.useUtils();
 
   // Protect the route
   useEffect(() => {
@@ -17,20 +18,20 @@ export default function TodosPage() {
     }
   }, [status, router]);
 
-  const { data: todos, isLoading, refetch } = trpc.todo.list.useQuery(undefined, {
+  const { data: todos, isLoading } = trpc.todo.list.useQuery(undefined, {
     enabled: !!session,
   });
 
   const createMutation = trpc.todo.create.useMutation({
     onSuccess: () => {
       setNewTodoTitle('');
-      refetch();
+      utils.todo.list.invalidate();
     },
   });
 
   const toggleMutation = trpc.todo.toggle.useMutation({
     onSuccess: () => {
-      refetch();
+      utils.todo.list.invalidate();
     },
   });
 
