@@ -62,7 +62,7 @@ export async function createTodo(input: z.infer<typeof createTodoSchema>) {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: 'Validation error: ' + error.errors.map(e => e.message).join(', ') 
+        error: 'Validation error: ' + error.issues.map(e => e.message).join(', ') 
       };
     }
     return { 
@@ -109,7 +109,7 @@ export async function toggleTodo(input: z.infer<typeof toggleTodoSchema>) {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: 'Validation error: ' + error.errors.map(e => e.message).join(', ') 
+        error: 'Validation error: ' + error.issues.map(e => e.message).join(', ') 
       };
     }
     return { 

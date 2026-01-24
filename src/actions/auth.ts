@@ -50,7 +50,7 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: 'Validation error: ' + error.errors.map(e => e.message).join(', ') 
+        error: 'Validation error: ' + error.issues.map(e => e.message).join(', ') 
       };
     }
     return { 
@@ -81,7 +81,7 @@ export async function requestPasswordReset(input: z.infer<typeof resetRequestSch
     if (error instanceof z.ZodError) {
       return { 
         success: false, 
-        error: 'Validation error: ' + error.errors.map(e => e.message).join(', ') 
+        error: 'Validation error: ' + error.issues.map(e => e.message).join(', ') 
       };
     }
     return { 
