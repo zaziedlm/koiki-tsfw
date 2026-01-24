@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
-import { trpc } from '../../lib/trpc-client';
+import { registerUser } from '../../actions/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,30 +14,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-
-  const registerMutation = trpc.auth.register.useMutation({
-    onSuccess: async () => {
-      setSuccess(true);
-      setError('');
-      // Automatically log in after registration
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-      
-      if (result?.ok) {
-        router.push('/todos');
-      } else {
-        // If auto-login fails, redirect to login page
-        router.push('/login');
-      }
-    },
-    onError: (err) => {
-      setError(err.message || 'ユーザー登録に失敗しました');
-      setSuccess(false);
-    },
-  });
+  const [isPending, setIsPending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +36,37 @@ export default function RegisterPage() {
       return;
     }
 
-    registerMutation.mutate({ email, password, name: name || undefined });
+    setIsPending(true);
+    
+    try {
+      const result = await registerUser({ email, password, name: name || undefined });
+      
+      if (result.success) {
+        setSuccess(true);
+        setError('');
+        // Automatically log in after registration
+        const loginResult = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        });
+        
+        if (loginResult?.ok) {
+          router.push('/todos');
+        } else {
+          // If auto-login fails, redirect to login page
+          router.push('/login');
+        }
+      } else {
+        setError(result.error || 'ユーザー登録に失敗しました');
+        setSuccess(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ユーザー登録に失敗しました');
+      setSuccess(false);
+    } finally {
+      setIsPending(false);
+    }
   };
 
   return (
@@ -146,10 +153,10 @@ export default function RegisterPage() {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={registerMutation.isPending}
+            disabled={isPending}
             style={{ width: '100%' }}
           >
-            {registerMutation.isPending ? '登録中...' : '登録する'}
+            {isPending ? '登録中...' : '登録する'}
           </button>
         </form>
 
