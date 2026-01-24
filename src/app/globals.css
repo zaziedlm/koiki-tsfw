@@ -279,6 +279,15 @@ small,
   color: var(--primary);
 }
 
+.grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.grid--two {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
 .hidden-visually {
   position: absolute;
   width: 1px;
