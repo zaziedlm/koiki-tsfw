@@ -1,17 +1,18 @@
 # KOIKI-(TS)FW – Next.jsフルスタックフレームワーク テンプレート
 
-このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、tRPC、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
+このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、Server Actions、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
 > **Next.js 16 対応**：本テンプレートは Next.js 16.0.10、React 19.2.3、Prisma 6.4 (adapter‑pg)、Node.js 20 を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
 
 ## 主な特徴
 
 - **型安全なデータアクセス**: Prisma ORM によるモデル定義と自動マイグレーション。
+- **Server Actions + RSC**: Next.js 16 の Server Actions と React Server Components による型安全な API 通信と高速レンダリング。
 - **認証・認可**: NextAuth.js (Prisma Adapter) による資格情報ベースのサインインを実装。`hasRole` ヘルパーを備えた RBAC 補助関数も用意しています。
 - **レートリミット**: `REDIS_URL` を指定した場合、rate‑limiter-flexible + Redis で API への連続アクセスを制限。未設定の場合は自動的にスキップします。
 - **ジョブキュー**: BullMQ によるメール送信ジョブ処理。Redis 未設定時はキュー投入をスキップし安全に動作します。
 - **ロギング**: Pino による高速JSONロギング。必要に応じて Prometheus エクスポーターを追加可。
-- **テスト容易性**: tRPC や依存性注入を利用し、ユニットテストやE2Eテストを容易にする。
+- **テスト容易性**: Server Actions や依存性注入を利用し、ユニットテストやE2Eテストを容易にする。
 
 ## ディレクトリ構成
 
@@ -24,24 +25,22 @@
 │   ├── app/
 │   │   ├── layout.tsx           # 全体レイアウト (Server Component)
 │   │   ├── page.tsx             # ルートページ (Server Component)
+│   │   ├── register/            # ユーザー登録ページ
+│   │   ├── login/               # ログインページ
+│   │   ├── todos/               # TODO管理ページ (RSC + Client Component)
 │   │   ├── ui-guide/            # UI ガイドページ
 │   │   └── api/
 │   │       ├── auth/[...nextauth]/route.ts  # NextAuth.js 認証ルート
-│   │       ├── health/route.ts              # ヘルスチェック
-│   │       └── trpc/[trpc]/route.ts         # tRPC エンドポイント
+│   │       └── health/route.ts              # ヘルスチェック
+│   ├── actions/
+│   │   ├── auth.ts              # 認証関連の Server Actions
+│   │   └── todo.ts              # TODO管理の Server Actions
 │   ├── lib/
 │   │   ├── prisma.ts            # Prisma クライアント (PostgreSQL adapter-pg)
 │   │   ├── auth.ts              # 認証ユーティリティ (RBAC など)
 │   │   ├── logger.ts            # Pino ロガー設定
 │   │   ├── queue.ts             # BullMQ キュー
 │   │   └── rateLimit.ts         # レートリミット
-│   ├── server/
-│   │   ├── api/routers/         # tRPC ルーター定義
-│   │   │   ├── app.ts           # ルーター統合
-│   │   │   ├── user.ts          # ユーザーAPI
-│   │   │   ├── auth.ts          # 認証API
-│   │   │   └── todo.ts          # TODO管理API
-│   │   └── trpc.ts              # tRPC コンテキスト/初期化
 │   ├── jobs/
 │   │   ├── worker.ts            # BullMQ ワーカー
 │   │   └── emailJob.ts          # メール送信ジョブ
@@ -127,13 +126,13 @@
 3. ヘッダーからログアウト
 4. `/login` で再度ログイン
 
-UIサンプルは tRPC + React Query による型安全なAPI通信と、NextAuth.js によるセッション管理を実際に体験できる実装例として提供されています。
+UIサンプルは Server Actions + RSC による型安全なAPI通信と、NextAuth.js によるセッション管理を実際に体験できる実装例として提供されています。
 
 ## API 入口の早見表
 
 - `GET /api/health`：ヘルスチェック
 - `/api/auth/*`：NextAuth 認証ルート
-- `/api/trpc/*`：tRPC エンドポイント
+- Server Actions：`src/actions/` 配下で定義された型安全な API 関数
 
 ## コンテナ実行
 
@@ -172,7 +171,7 @@ docker compose --profile full up --build
 1. Postgres・Redis・SMTP が起動していることを確認し、`.env` を `.env.local` などにコピーして接続情報を記入します。
 2. `pnpm prisma migrate dev --name init` を実行し、Prisma スキーマに基づくテーブルを作成します。
 3. `pnpm dev` でアプリケーションを起動後、別ターミナルで `pnpm worker` を実行して BullMQ ワーカーを常駐させます。
-4. 新規登録 (`/api/trpc/auth.register`) → TODO 作成/更新 (`/api/trpc/todo.*`) → メール送信ジョブが処理されることを順に確認します。送信ログは Pino を通じてコンソールに出力されます。
+4. 新規登録 (`/register`) → TODO 作成/更新 (`/todos`) → メール送信ジョブが処理されることを順に確認します。送信ログは Pino を通じてコンソールに出力されます。
 
 ## 🔒 Fork・利用に関するご案内
 
