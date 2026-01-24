@@ -27,25 +27,37 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
     }
     
     const hashed = await hashPassword(validated.password);
-    const user = await prisma.user.create({ 
-      data: { 
-        email: validated.email, 
-        hashedPassword: hashed, 
-        name: validated.name 
-      } 
-    });
     
-    // Send welcome email asynchronously
-    await enqueueEmail({ 
-      to: user.email, 
-      subject: 'Welcome!', 
-      html: `<p>Hello ${user.name ?? ''}</p>` 
-    });
-    
-    return { 
-      success: true, 
-      userId: user.id 
-    };
+    try {
+      const user = await prisma.user.create({ 
+        data: { 
+          email: validated.email, 
+          hashedPassword: hashed, 
+          name: validated.name 
+        } 
+      });
+      
+      // Send welcome email asynchronously
+      await enqueueEmail({ 
+        to: user.email, 
+        subject: 'Welcome!', 
+        html: `<p>Hello ${user.name ?? ''}</p>` 
+      });
+      
+      return { 
+        success: true, 
+        userId: user.id 
+      };
+    } catch (createError: any) {
+      // Handle unique constraint violation from race condition
+      if (createError.code === 'P2002') {
+        return { 
+          success: false, 
+          error: 'User exists' 
+        };
+      }
+      throw createError;
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return { 
@@ -68,7 +80,8 @@ export async function requestPasswordReset(input: z.infer<typeof resetRequestSch
   try {
     const validated = resetRequestSchema.parse(input);
     
-    // Generate reset token and save to DB or cache (omitted)
+    // TODO: Generate cryptographically secure random token and save to DB with expiration
+    // For production, use: crypto.randomBytes(32).toString('hex')
     const resetToken = 'token';
     await enqueueEmail({ 
       to: validated.email, 

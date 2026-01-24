@@ -85,6 +85,7 @@ export async function toggleTodo(input: z.infer<typeof toggleTodoSchema>) {
   try {
     const validated = toggleTodoSchema.parse(input);
     
+    // First verify ownership
     const todo = await prisma.todo.findUnique({ 
       where: { id: validated.id } 
     });
@@ -96,8 +97,12 @@ export async function toggleTodo(input: z.infer<typeof toggleTodoSchema>) {
       };
     }
     
+    // Use atomic update to avoid race conditions
     const updated = await prisma.todo.update({ 
-      where: { id: validated.id }, 
+      where: { 
+        id: validated.id,
+        userId: session.user.id // Double-check ownership in the update
+      }, 
       data: { completed: !todo.completed } 
     });
     
