@@ -2,7 +2,7 @@
 
 このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、tRPC、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
-> **Next.js 16 対応**：本テンプレートは Next.js 16.0.10、React 19.2、Prisma 6.4 (adapter‑pg) を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
+> **Next.js 16 対応**：本テンプレートは Next.js 16.0.10、React 19.2.3、Prisma 6.4 (adapter‑pg)、Node.js 20 を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
 
 ## 主な特徴
 
@@ -10,7 +10,7 @@
 - **認証・認可**: NextAuth.js (Prisma Adapter) による資格情報ベースのサインインを実装。`hasRole` ヘルパーを備えた RBAC 補助関数も用意しています。
 - **レートリミット**: `REDIS_URL` を指定した場合、rate‑limiter-flexible + Redis で API への連続アクセスを制限。未設定の場合は自動的にスキップします。
 - **ジョブキュー**: BullMQ によるメール送信ジョブ処理。Redis 未設定時はキュー投入をスキップし安全に動作します。
-- **ロギングと監査**: Pino による高速JSONロギングと監査ログを記録。必要に応じて Prometheus エクスポーターを追加可。
+- **ロギング**: Pino による高速JSONロギング。必要に応じて Prometheus エクスポーターを追加可。
 - **テスト容易性**: tRPC や依存性注入を利用し、ユニットテストやE2Eテストを容易にする。
 
 ## ディレクトリ構成
@@ -24,15 +24,17 @@
 │   ├── app/
 │   │   ├── layout.tsx           # 全体レイアウト (Server Component)
 │   │   ├── page.tsx             # ルートページ (Server Component)
+│   │   ├── ui-guide/            # UI ガイドページ
 │   │   └── api/
 │   │       ├── auth/[...nextauth]/route.ts  # NextAuth.js 認証ルート
+│   │       ├── health/route.ts              # ヘルスチェック
 │   │       └── trpc/[trpc]/route.ts         # tRPC エンドポイント
 │   ├── lib/
 │   │   ├── prisma.ts            # Prisma クライアント (PostgreSQL adapter-pg)
 │   │   ├── auth.ts              # 認証ユーティリティ (RBAC など)
 │   │   ├── logger.ts            # Pino ロガー設定
 │   │   ├── queue.ts             # BullMQ キュー
-│   │   └── rateLimit.ts         # レートリミット・ログイン試行制限
+│   │   └── rateLimit.ts         # レートリミット
 │   ├── server/
 │   │   ├── api/routers/         # tRPC ルーター定義
 │   │   │   ├── app.ts           # ルーター統合
@@ -78,6 +80,32 @@
    ```
 
 詳細な設定は `src/lib/` 以下の各ファイルを参照してください。
+
+## TypeScript 設定の概要
+
+本プロジェクトは Next.js 16 の推奨に合わせ、以下の方針で TypeScript 設定を行っています。
+
+- `moduleResolution: "bundler"` により、`exports` を含む依存解決を Next.js のビルド方式に合わせています。
+- `target: "es2022"` でモダンな出力を前提にし、RSC/React 19 の実行環境に整合させています。
+- `jsx: "preserve"` と Next.js TypeScript プラグインを併用し、ビルド時の最適化に委譲します。
+
+詳細は `tsconfig.json` を参照してください。
+
+## 環境変数（最小セット）
+
+最低限、以下の 3 つが必要です。
+
+- `DATABASE_URL`：PostgreSQL への接続文字列
+- `NEXTAUTH_URL`：NextAuth のベース URL
+- `NEXTAUTH_SECRET`：セッション署名用のシークレット
+
+`.env.example` をベースに `.env` / `.env.local` を作成して設定してください。
+
+## API 入口の早見表
+
+- `GET /api/health`：ヘルスチェック
+- `/api/auth/*`：NextAuth 認証ルート
+- `/api/trpc/*`：tRPC エンドポイント
 
 ## コンテナ実行
 
