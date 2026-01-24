@@ -45,6 +45,8 @@
 │   │   ├── worker.ts            # BullMQ ワーカー
 │   │   └── emailJob.ts          # メール送信ジョブ
 │   └── proxy.ts                 # Next.js 16 Proxy (レート制限)
+├── docs/
+│   └── koiki-tsfw-guide_0.2.0.md  # 詳細ガイド (v0.2.0)
 ├── .env.example                 # 環境変数サンプル
 ├── package.json                 # 依存ライブラリ
 ├── next.config.ts               # Next.js 設定 (Next.js 16)

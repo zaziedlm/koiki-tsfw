@@ -1,10 +1,10 @@
-# KOIKI-(TS)FW v0.1.0 ガイド
+# KOIKI-(TS)FW v0.2.0 ガイド
 
 ## はじめに
 
-KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.com/zaziedlm/koiki-pyfw) を Next.js + TypeScript で再設計したフルスタック開発フレームワークです。React Server Components と Next.js 16 系の機能を活かしつつ、Prisma・NextAuth.js・tRPC・BullMQ・Pino などを OSS コンポーネントとして組み合わせ、同様の Developer Experience（開発者体験） と機能要件をフロントエンド中心のエコシステムで達成することを目標にしています。
+KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.com/zaziedlm/koiki-pyfw) を Next.js + TypeScript で再設計したフルスタック開発フレームワークです。React Server Components と Server Actions を中心とした Next.js 16 系の機能を活かし、Prisma・NextAuth.js・BullMQ・Pino などを OSS コンポーネントとして組み合わせ、同様の Developer Experience（開発者体験） と機能要件をフロントエンド中心のエコシステムで達成することを目標にしています。
 
-本書では、リポジトリ全体の設計思想・主要機能・構成要素を俯瞰し、Python 版ドキュメントにおける考え方との対応関係を整理します。
+本書では、リポジトリ全体の設計思想・主要機能・構成要素を俯瞰し、Python 版ドキュメントにおける考え方との対応関係を整理します。v0.2.0 では tRPC を廃止し、Next.js 標準の Server Actions による型安全な API 通信へ移行しました。
 
 ---
 
@@ -15,8 +15,8 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 | Web フレームワーク | Next.js 16 App Router | サーバーサイドレンダリングと API ルーティング | [Next.js](https://nextjs.org/) |
 | 言語 | TypeScript 5.9 / React 19.2 | 型安全と最新 RSC 互換 UI | [TypeScript](https://www.typescriptlang.org/) |
 | ORM / DB | Prisma 6 Client + PostgreSQL (adapter-pg) | スキーマ定義・マイグレーション・DB アクセス | [Prisma](https://www.prisma.io/) |
-| 認証 | NextAuth.js (Credentials Provider) | セッション・RBAC 補助 | [NextAuth.js](https://next-auth.js.org/) |
-| API | tRPC v11 | 型安全な App Router API | [tRPC](https://trpc.io/) |
+| 認証 | NextAuth.js (Prisma Adapter) | セッション・RBAC 補助 | [NextAuth.js](https://next-auth.js.org/) |
+| API / Mutation | Server Actions | 型安全なサーバーサイド関数呼び出し | [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) |
 | キュー / ジョブ | BullMQ + Redis | 非同期ジョブ処理・メール送信 | [BullMQ](https://docs.bullmq.io/) |
 | ロギング | Pino 10 | JSON ログ出力・構造化ログ | [Pino](https://getpino.io/) |
 | レート制御 | rate-limiter-flexible 9 + Redis | API プロキシでのリクエスト制御 | [rate-limiter-flexible](https://github.com/animir/node-rate-limiter-flexible) |
@@ -32,17 +32,17 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 │  ├─ schema.prisma    # Prisma データモデル定義
 ├─ src/
 │  ├─ app/              # Next.js App Router (UI / Route Handler)
-│  │  ├─ api/          # NextAuth と tRPC エンドポイント
+│  │  ├─ api/          # NextAuth と Health Check エンドポイント
 │  │  ├─ ui-guide/     # デザインシステムのデモページ
 │  │  ├─ layout.tsx    # アプリ全体のレイアウト
 │  │  └─ globals.css   # デザイントークン & ベーススタイル
+│  ├─ actions/          # Server Actions (ビジネスロジック層)
 │  ├─ lib/              # 共通ライブラリ (Prisma, Auth, Queue, Logger …)
-│  ├─ server/           # tRPC ルーターとサーバーコンテキスト
 │  ├─ jobs/             # BullMQ ジョブ定義とワーカー
 │  └─ proxy.ts          # レートリミット用 Next.js 16 プロキシ
 ├─ docker-compose.yml   # Postgres / Redis / MailHog / Worker コンテナ
 ├─ Dockerfile           # マルチステージビルド (Next.js 16 のデフォルトビルドに追従)
-└─ docs/koiki-tsfw-guide.md  # 本ガイド
+└─ docs/koiki-tsfw-guide_0.2.0.md  # 本ガイド
 ```
 
 ---
@@ -51,7 +51,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 * Next.js App Router を「アプリケーション層」と位置付け、UI と Route Handler (API) を同一フォルダで管理します。
 * Prisma を「データ層」とし、TypeScript 型と DB モデルを一元化します。Python 版の SQLAlchemy + Pydantic 相当の責務を集約しました。
-* tRPC で API をモジュール化し、`src/server/api/routers` 以下で Python 版の `libkoiki` 配下に相当する機能を構成しています。
+* **Server Actions** (`src/actions/*.ts`) でビジネスロジックと API をモジュール化し、Python 版の `libkoiki` 配下に相当する機能を構成しています。`'use server'` ディレクティブにより、クライアントコンポーネントから型安全に呼び出せます。
 * BullMQ と Nodemailer により非同期ジョブと通知送信を担当し、Redis を共通インフラとして利用します (オプション)。
 * プロキシ (Next.js 16) では Redis バックエンドのレートリミットを提供し、API エントリポイントを守ります。
 * ロギングは Pino による JSON 出力を基本とし、将来的な Prometheus 連携を想定しています。
@@ -68,7 +68,8 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 ### Route Handler
 
 * `src/app/api/auth/[...nextauth]/route.ts` に NextAuth.js の設定を集約し、Credentials Provider により E メール / パスワード認証を実装します。
-* `src/app/api/trpc/[trpc]/route.ts` は tRPC ルーターを Next.js の fetch ハンドラーとして公開します。Python 版の `app/api` (FastAPI Router) に相当します。
+* `src/app/api/health/route.ts` はヘルスチェック用エンドポイントで、コンテナの正常性確認に利用します。
+* v0.2.0 では tRPC エンドポイントを廃止し、代わりに Server Actions で API を提供します。
 
 ---
 
@@ -80,15 +81,16 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 ---
 
-## API 層 (tRPC)
+## API 層 (Server Actions)
 
-* `src/server/trpc.ts` で tRPC の初期化と `createContext` を定義し、NextAuth セッションを API 各処理へ注入します。
-* `src/server/api/routers/app.ts` がアプリ単位のルーターを構成し、`user` / `todo` / `auth` のサブモジュールを集約しています。
-* 個別ルーターの責務:
-  * `userRouter` (`me`, `list`) — セッションからユーザー情報を読み出すクエリを提供。
-  * `todoRouter` (`list`, `create`, `toggle`) — ユーザーに紐づく Todo の CRUD 相当を実装し、Python 版のサービス + リポジトリ層の役割を統合しています。
-  * `authRouter` (`register`, `resetRequest`) — ユーザー登録と簡易パスワードリセットメール送信を担当。BullMQ 経由でメールジョブを enqueue します。
-* `protectedProcedure` により NextAuth セッション必須 API を宣言的に表現します。
+* `src/actions/*.ts` で Server Actions を定義し、各ファイルは `'use server'` ディレクティブで始まります。
+* NextAuth の `getServerSession(authOptions)` を各 Action 内で呼び出し、セッション情報を検証します。
+* 個別 Action ファイルの責務:
+  * `auth.ts` (`registerUser`, `requestPasswordReset`) — ユーザー登録とパスワードリセットメール送信。BullMQ 経由でメールジョブを enqueue します。
+  * `todo.ts` (`listTodos`, `createTodo`, `toggleTodo`, `deleteTodo`) — ユーザーに紐づく Todo の CRUD 相当を実装し、Python 版のサービス + リポジトリ層の役割を統合しています。
+* **Zod によるバリデーション**: 各 Action の入力は Zod スキーマで検証し、型安全性を確保します。
+* **エラーハンドリング**: `try-catch` でエラーを捕捉し、`{ success: boolean, error?: string, data?: T }` 形式の結果を返します。
+* クライアントコンポーネントからは、通常の関数として import して呼び出すだけで、自動的に POST リクエストとして処理されます。
 
 ---
 
@@ -198,7 +200,7 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 * 現状は自動テストのセットアップが未実装です。Python 版で提供していた pytest / セキュリティテスト (slowapi) に相当する仕組みが課題となります。
 * 優先度の高い TODO:
-  * Prisma Schema を用いたシードデータ・E2E テスト (Playwright または Vitest + tRPC テストクライアント)。
+  * Prisma Schema を用いたシードデータ・E2E テスト (Playwright または Vitest + Server Actions のテスト)。
   * BullMQ ジョブの単体テスト (Queue Mock) と Mailer の検証。
   * Lint / Format / Type Check CI (GitHub Actions) の導入。
   * レートリミットや RBAC の回帰テスト。
@@ -207,25 +209,26 @@ KOIKI-(TS)FW は、FastAPI ベースである [KOIKI-FW v0.6.0](https://github.c
 
 ## Python 版からの差分とロードマップ
 
-| 項目 | FastAPI 版 | Next.js 版の現状 | 今後の課題 |
+| 項目 | FastAPI 版 | Next.js 版 (v0.2.0) | 今後の課題 |
 | --- | --- | --- | --- |
 | 認証 | JWT + OAuth2 | NextAuth.js Credentials | OAuth プロバイダ対応、Permission API 拡充 |
-| RBAC | Role/Permission サービス層 | Prisma と `hasRole` のみ | 権限管理 UI、tRPC ミドルウェアの拡張 |
+| RBAC | Role/Permission サービス層 | Prisma と `hasRole` のみ | 権限管理 UI、Server Actions での権限チェック強化 |
+| API 層 | FastAPI Router | Server Actions | ミドルウェア的な共通処理の抽象化 |
 | レート制御 | slowapi | rate-limiter-flexible | Redis 無し環境での代替、メトリクス収集 |
 | 背景ジョブ | Celery | BullMQ | 遅延ジョブ種別の追加、監視工具 (Arena 等) |
 | ロギング | structlog + Prometheus | Pino | Access Log 統合、OpenTelemetry |
 | テスト | pytest / security scripts | 未整備 | playwright / vitest / lint CI |
 | ドキュメント | docs/*.md | 本ガイドのみ | API リファレンス、チュートリアル整備 |
 
-Python 版ドキュメント (`docs/design_kkfw_0.6.0.md`) に記載された DDD / Modular Monolith の考え方は、本リポジトリでも tRPC ルーターの分割や Prisma モデルで引き続き活かせます。必要に応じて `src/server/api/routers` を機能軸で細分化し、UI 層にも同じ語彙 (Todo、Auth など) を導入すると保守性が向上します。
+Python 版ドキュメント (`docs/design_kkfw_0.6.0.md`) に記載された DDD / Modular Monolith の考え方は、本リポジトリでも Server Actions の分割や Prisma モデルで引き続き活かせます。必要に応じて `src/actions` を機能軸で細分化し、UI 層にも同じ語彙 (Todo、Auth など) を導入すると保守性が向上します。
 
 ---
 
 ## 参考資料
 
 * KOIKI-FW v0.6.0 ドキュメント: [`docs/design_kkfw_0.6.0.md`](https://raw.githubusercontent.com/zaziedlm/koiki-pyfw/master/docs/design_kkfw_0.6.0.md)
-* Next.js 15 リリースノート: <https://nextjs.org/blog>
-* tRPC v11 ドキュメント: <https://trpc.io/docs>
+* Next.js 16 リリースノート: <https://nextjs.org/blog>
+* Server Actions ドキュメント: <https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations>
 * Prisma Schema リファレンス: <https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference>
 * BullMQ ガイド: <https://docs.bullmq.io/>
 * Pino ロギング: <https://getpino.io/>
