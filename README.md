@@ -2,7 +2,7 @@
 
 このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、Server Actions、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
-> **Next.js 16 対応**：本テンプレートは Next.js 16.2.9、React 19.2.7、Prisma 7.8 (adapter-pg)、Node.js 22.20 を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
+> **Next.js 16 対応**：本テンプレートは Next.js 16.2.9、React 19.2.7、Prisma 7.8 (adapter-pg) を使用します。Node.js の最低要件は 20.19 で、標準の Docker イメージは Node.js 22.20 に固定しています。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
 
 ## 主な特徴
 
@@ -21,6 +21,7 @@
 ├── prisma/
 │   ├── schema.prisma            # Prisma データモデル
 │   └── migrations/              # 自動生成されるマイグレーション
+├── prisma.config.ts             # Prisma 7 CLI 設定 / DATABASE_URL 読み込み
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx           # 全体レイアウト (Server Component)
@@ -48,6 +49,10 @@
 ├── docs/
 │   └── koiki-tsfw-guide_0.2.0.md  # 詳細ガイド (v0.2.0)
 ├── .env.example                 # 環境変数サンプル
+├── .mcp.json                    # Next.js DevTools MCP 設定
+├── AGENTS.md                    # コーディングエージェント向けルール
+├── Dockerfile                   # Node.js 22.20 マルチステージビルド
+├── docker-compose.yml           # アプリ / Postgres / Redis / MailHog
 ├── package.json                 # 依存ライブラリ
 ├── next.config.ts               # Next.js 設定 (Next.js 16)
 └── tsconfig.json                # TypeScript 設定
@@ -55,26 +60,66 @@
 
 ## セットアップ
 
-1. **依存インストール**
+1. **実行環境の確認**
+
+   Node.js 20.19 以上と、`package.json` に指定された pnpm 9.15.5 を使用します。Docker と同じ条件にそろえる場合は Node.js 22.20 を使用してください。
 
    ```bash
-   pnpm install
+   node --version
+   corepack pnpm --version
    ```
 
-2. **Prisma 初期化**
+   `pnpm` コマンドが直接利用できない環境では、以降の `pnpm` を `corepack pnpm` に読み替えてください。
+
+2. **依存インストール**
 
    ```bash
-   pnpm prisma migrate dev --name init
+   corepack pnpm install
    ```
 
-3. **開発サーバ起動**
+3. **PostgreSQL 起動**
+
+   Docker Compose の PostgreSQL のみを起動します。
+
+   ```bash
+   docker compose up -d postgres
+   ```
+
+4. **環境変数の準備**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Windows PowerShell では次のコマンドを使用します。
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   `.env.example` の `DATABASE_URL` はコンテナ間通信用の `postgres:5432` です。ホストOS上で `pnpm dev` や Prisma CLI を実行する場合は、`.env` を次のように変更します。
+
+   ```dotenv
+   DATABASE_URL=postgresql://koiki:koiki@localhost:5432/koiki
+   ```
+
+5. **Prisma Client生成とマイグレーション**
+
+   ```bash
+   pnpm prisma generate
+   pnpm prisma migrate dev
+   ```
+
+   既存の初期マイグレーションが含まれているため、通常のセットアップでは新しい `init` マイグレーションを作成しません。スキーマ変更時のみ `--name <migration-name>` を指定してください。
+
+6. **開発サーバ起動**
 
    ```bash
    pnpm dev
    ```
    > `pnpm dev` は Turbopack を使って開発サーバを立ち上げます。本番ビルドは `pnpm build`（`next build`）で、Next.js 16 のデフォルト設定に従います。
 
-4. **ジョブワーカー起動**
+7. **ジョブワーカー起動（Redis利用時）**
 
    ```bash
    pnpm worker
@@ -88,7 +133,7 @@
 
 - `moduleResolution: "bundler"` により、`exports` を含む依存解決を Next.js のビルド方式に合わせています。
 - `target: "es2022"` でモダンな出力を前提にし、RSC/React 19 の実行環境に整合させています。
-- `jsx: "preserve"` と Next.js TypeScript プラグインを併用し、ビルド時の最適化に委譲します。
+- `jsx: "react-jsx"` と Next.js TypeScript プラグインを併用します。
 
 詳細は `tsconfig.json` を参照してください。
 
@@ -100,7 +145,9 @@
 - `NEXTAUTH_URL`：NextAuth のベース URL
 - `NEXTAUTH_SECRET`：セッション署名用のシークレット
 
-`.env.example` をベースに `.env` / `.env.local` を作成して設定してください。
+`.env.example` をベースに `.env` を作成して設定してください。Next.jsは`.env.local`も読み込みますが、`prisma.config.ts`は`dotenv/config`を通じて`.env`を読むため、DB接続設定は`.env`に記述します。
+
+Prisma 7では、`prisma/schema.prisma`にはDBプロバイダーのみを宣言し、Prisma CLIが使用する接続URLはリポジトリルートの`prisma.config.ts`で読み込みます。アプリケーション本体も同じ`DATABASE_URL`を使用します。
 
 ## UIサンプル実装
 
@@ -170,10 +217,26 @@ docker compose --profile full up --build
 
 ## 動作確認フロー
 
-1. Postgres・Redis・SMTP が起動していることを確認し、`.env` を `.env.local` などにコピーして接続情報を記入します。
-2. `pnpm prisma migrate dev --name init` を実行し、Prisma スキーマに基づくテーブルを作成します。
+1. Postgres・Redis・SMTP が起動していることを確認し、`.env.example` を `.env` にコピーして実行場所に合った接続情報を記入します。
+2. `pnpm prisma generate`と`pnpm prisma migrate dev`を実行し、Prisma Client生成と既存マイグレーション適用を行います。
 3. `pnpm dev` でアプリケーションを起動後、別ターミナルで `pnpm worker` を実行して BullMQ ワーカーを常駐させます。
 4. 新規登録 (`/register`) → TODO 作成/更新 (`/todos`) → メール送信ジョブが処理されることを順に確認します。送信ログは Pino を通じてコンソールに出力されます。
+
+## 品質確認
+
+依存更新やリリース前には、最低限以下を実行します。
+
+```bash
+pnpm exec tsc --noEmit
+pnpm prisma validate
+pnpm prisma generate
+pnpm prisma migrate status
+pnpm audit
+pnpm build
+docker compose build app
+```
+
+依存関係のセキュリティ対応や設計の詳細は、[`docs/koiki-tsfw-guide_0.2.0.md`](docs/koiki-tsfw-guide_0.2.0.md)を参照してください。
 
 ## 🔒 Fork・利用に関するご案内
 
