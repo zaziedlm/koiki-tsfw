@@ -4,12 +4,37 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { hashPassword } from '../lib/auth';
 import { enqueueEmail } from '../jobs/emailJob';
+import { logger } from '../lib/logger';
 
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().optional(),
 });
+
+function isPrismaError(error: unknown, code: string) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === code
+  );
+}
+
+function isDatabaseConnectionError(error: unknown): boolean {
+  if (
+    isPrismaError(error, 'P1000') ||
+    isPrismaError(error, 'P1001') ||
+    isPrismaError(error, 'P1002') ||
+    isPrismaError(error, 'P1003') ||
+    isPrismaError(error, 'ECONNREFUSED')
+  ) {
+    return true;
+  }
+
+  return error instanceof AggregateError &&
+    error.errors.some(isDatabaseConnectionError);
+}
 
 export async function registerUser(input: z.infer<typeof registerSchema>) {
   try {
@@ -48,9 +73,9 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
         success: true, 
         userId: user.id 
       };
-    } catch (createError: any) {
+    } catch (createError: unknown) {
       // Handle unique constraint violation from race condition
-      if (createError.code === 'P2002') {
+      if (isPrismaError(createError, 'P2002')) {
         return { 
           success: false, 
           error: 'User exists' 
@@ -65,9 +90,19 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
         error: 'Validation error: ' + error.issues.map(e => e.message).join(', ') 
       };
     }
+
+    logger.error({ err: error }, 'User registration failed');
+
+    if (isDatabaseConnectionError(error)) {
+      return {
+        success: false,
+        error: 'データベースに接続できません。PostgreSQLの起動状態を確認してください',
+      };
+    }
+
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: 'ユーザー登録に失敗しました',
     };
   }
 }

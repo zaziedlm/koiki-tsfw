@@ -2,7 +2,7 @@
 
 このリポジトリは、Python ベースの KOIKI‑FW (FastAPI) の堅牢なエンタープライズ機能を Next.js + TypeScript へ移植するためのプロジェクトテンプレートです。Prisma、NextAuth.js、Server Actions、BullMQ などの OSS を組み合わせ、クリーンな構成とセキュアな実装を提供します。KOIKI‑FW v0.6.0 の特徴を再現しつつ、React Server Components による高速表示を実現します。
 
-> **Next.js 16 対応**：本テンプレートは Next.js 16.0.10、React 19.2.3、Prisma 6.4 (adapter‑pg)、Node.js 20 を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
+> **Next.js 16 対応**：本テンプレートは Next.js 16.2.9、React 19.2.7、Prisma 7.8 (adapter-pg)、Node.js 22.20 を使用した構成です。型付きルーティング (`typedRoutes`) を有効にし、開発サーバーは Turbopack (`pnpm dev`) を利用します。本番ビルドは標準の `next build` コマンドを使用し、Next.js 16 のデフォルト設定に従います。
 
 ## 主な特徴
 
