@@ -10,31 +10,45 @@
   },
   "packageManager": "pnpm@9.15.5",
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.1",
-    "@prisma/adapter-pg": "^6.4.0",
-    "@prisma/client": "^6.4.0",
+    "@auth/prisma-adapter": "^2.11.2",
+    "@prisma/adapter-pg": "^6.19.1",
+    "@prisma/client": "^6.19.1",
     "bcryptjs": "^3.0.3",
-    "bullmq": "^5.66.0",
-    "ioredis": "^5.8.2",
+    "bullmq": "^5.78.1",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.9",
-    "next-auth": "^4.24.13",
-    "nodemailer": "^7.0.11",
-    "pg": "^8.16.3",
-    "pino": "^10.1.0",
-    "prisma": "^6.4.0",
+    "next-auth": "^4.24.14",
+    "nodemailer": "^9.0.0",
+    "pg": "^8.21.0",
+    "pino": "^10.3.1",
+    "prisma": "^6.19.1",
     "rate-limiter-flexible": "^9.0.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "superjson": "^2.2.6",
-    "zod": "^4.1.13"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.17.6",
-    "@types/pg": "^8.16.0",
-    "@types/react": "^19.2.7",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "diff": "4.0.4",
+      "effect": "3.20.0",
+      "ioredis": "5.11.1",
+      "postcss": "8.5.10",
+      "uuid": "11.1.1"
+    },
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "nodemailer": "9"
+      }
+    }
   }
 }
